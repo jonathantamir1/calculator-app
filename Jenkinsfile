@@ -7,7 +7,7 @@ pipeline {
                 checkout([$class: 'GitSCM', branches: [[name: '*/master']],
                     doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [],
                     userRemoteConfigs: [[credentialsId: '<credentials_id>', url:
-                        'https://github.com/jonathantamir1/calculator-app']]])
+                        'https://github.com/jonathantamir1/calculator-app.git']]])
             }
         }
         stage('Build Docker Image') {

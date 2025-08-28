@@ -2,14 +2,16 @@ pipeline {
     agent any
 
     stages {
-        stage('Checkout Repository') {
-            steps {
-                checkout([$class: 'GitSCM', branches: [[name: '*/master']],
-                    doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [],
-                    userRemoteConfigs: [[credentialsId: '<credentials_id>', url:
-                        'https://github.com/jonathantamir1/calculator-app.git']]])
-            }
-        }
+		stage('Checkout') {
+		  steps {
+			checkout scm
+			sh 'git rev-parse --short HEAD > .git-commit'
+			script {
+			  env.GIT_COMMIT_SHORT = readFile('.git-commit').trim()
+			}
+		  }
+		}
+
         stage('Build Docker Image') {
             steps {
                 sh 'docker build -t <image_name> .'

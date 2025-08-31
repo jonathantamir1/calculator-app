@@ -1,0 +1,10 @@
+__pycache__
+*.pyc
+.git
+.gitignore
+README.md
+PRODUCTION_SETUP.md
+*.pem
+JENKINS_CREDENTIALS.md
+COMPLETE_CREDENTIALS_SETUP.md
+PRODUCTION_SETUP.md

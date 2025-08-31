@@ -20,6 +20,7 @@ wheels/
 .installed.cfg
 *.egg
 MANIFEST
+.pytest_cache/
 
 # Virtual environments
 venv/
@@ -47,13 +48,14 @@ Thumbs.db
 # Jenkins and CI/CD
 *.jenkins
 jenkins-config.xml
-jenkins-docker-compose.yml
 
 # Setup and deployment scripts
 setup-*.sh
 deploy.sh
 PLATFORM_BOOTSTRAP.md
 COMPLETE_CREDENTIALS_SETUP.md
+PRODUCTION_SETUP.md
+JENKINS_CREDENTIALS.md
 
 # Docker
 docker-compose.yml
@@ -68,6 +70,7 @@ aws-credentials
 .aws/
 credentials
 config
+*.ppk
 
 # Logs
 *.log
@@ -82,7 +85,6 @@ logs/
 # Test coverage
 .coverage
 .coverage.*
-.pytest_cache/
 htmlcov/
 .tox/
 .nox/

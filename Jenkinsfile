@@ -1,5 +1,5 @@
 pipeline {
-    agent any
+    agent none
     
     environment {
         ECR_REGISTRY = '992382545251.dkr.ecr.us-east-1.amazonaws.com'
@@ -10,6 +10,12 @@ pipeline {
     
     stages {
         stage('Environment Setup') {
+            agent {
+                docker {
+                    image 'alpine:latest'
+                    args '-v /var/run/docker.sock:/var/run/docker.sock'
+                }
+            }
             steps {
                 script {
                     echo "=== Pipeline Environment Variables ==="
@@ -23,6 +29,12 @@ pipeline {
         }
         
         stage('Build') {
+            agent {
+                docker {
+                    image 'docker:latest'
+                    args '-v /var/run/docker.sock:/var/run/docker.sock'
+                }
+            }
             steps {
                 script {
                     // Build Docker image
@@ -37,36 +49,35 @@ pipeline {
         }
         
         stage('Test') {
+            agent {
+                docker {
+                    image '${ECR_REPOSITORY}:${IMAGE_TAG}'
+                    args '-v /var/run/docker.sock:/var/run/docker.sock'
+                }
+            }
             steps {
                 script {
-                    sh 'docker run --rm ${ECR_REPOSITORY}:${IMAGE_TAG} python -m unittest discover -s tests -v'
+                    sh 'python -m unittest discover -s tests -v'
                 }
             }
         }
         
-        
         stage('Push to ECR') {
+            agent {
+                docker {
+                    image 'amazon/aws-cli:latest'
+                    args '-v /var/run/docker.sock:/var/run/docker.sock'
+                }
+            }
             steps {
                 script {
-                    // Install AWS CLI and login to ECR using AWS credentials
                     withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
                         sh '''
-                            echo "Installing AWS CLI..."
-                            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-                            unzip awscliv2.zip
-                            ./aws/install --install-dir /tmp/aws-cli --bin-dir /tmp/aws-cli/bin
-                            export PATH="/tmp/aws-cli/bin:$PATH"
-                            
-                            echo "Testing AWS credentials..."
-                            aws sts get-caller-identity
                             echo "Logging into ECR..."
                             aws ecr get-login-password --region us-east-1 | \
                             docker login --username AWS --password-stdin ${ECR_REGISTRY}
-                        '''
-                        
-                        // Push images (already tagged in Build stage)
-                        sh '''
-                            export PATH="/tmp/aws-cli/bin:$PATH"
+                            
+                            echo "Pushing images..."
                             docker push ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
                             docker push ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest
                         '''
@@ -76,11 +87,18 @@ pipeline {
         }
         
         stage('Deploy to Production') {
+            agent {
+                docker {
+                    image 'alpine:latest'
+                    args '-v /var/run/docker.sock:/var/run/docker.sock'
+                }
+            }
             steps {
                 script {
                     // Deploy to production EC2 using SSH credentials
                     withCredentials([sshUserPrivateKey(credentialsId: 'ssh-key', keyFileVariable: 'SSH_KEY')]) {
                         sh '''
+                            apk add --no-cache openssh-client
                             ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no ec2-user@${PRODUCTION_EC2_IP} '
                                 # Stop existing container
                                 docker stop calculator-app || true
@@ -104,14 +122,20 @@ pipeline {
         }
         
         stage('Health Check') {
+            agent {
+                docker {
+                    image 'alpine:latest'
+                    args '-v /var/run/docker.sock:/var/run/docker.sock'
+                }
+            }
             steps {
                 script {
-                    // Wait for deployment
-                    sh 'sleep 10'
-                    
-                    // Health check
-                    sh 'curl -f http://${PRODUCTION_EC2_IP}/health || exit 1'
-                    echo 'Deployment successful! App is healthy.'
+                    sh '''
+                        apk add --no-cache curl
+                        sleep 10
+                        curl -f http://${PRODUCTION_EC2_IP}/health || exit 1
+                        echo "Deployment successful! App is healthy."
+                    '''
                 }
             }
         }
@@ -119,10 +143,20 @@ pipeline {
     
     post {
         always {
-            // Cleanup
-            sh 'docker rmi ${ECR_REPOSITORY}:${IMAGE_TAG} || true'
-            sh 'docker rmi ${ECR_REPOSITORY}:latest || true'
-            sh 'docker system prune -f || true'
+            agent {
+                docker {
+                    image 'docker:latest'
+                    args '-v /var/run/docker.sock:/var/run/docker.sock'
+                }
+            }
+            steps {
+                script {
+                    // Cleanup
+                    sh 'docker rmi ${ECR_REPOSITORY}:${IMAGE_TAG} || true'
+                    sh 'docker rmi ${ECR_REPOSITORY}:latest || true'
+                    sh 'docker system prune -f || true'
+                }
+            }
         }
     }
 }

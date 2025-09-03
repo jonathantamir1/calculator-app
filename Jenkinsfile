@@ -147,7 +147,7 @@ pipeline {
     
     post {
         always {
-            node {
+            node('docker') {
                 script {
                     // Cleanup using Docker-in-Docker
                     sh '''

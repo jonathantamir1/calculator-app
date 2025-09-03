@@ -3,7 +3,7 @@ pipeline {
     
     environment {
         ECR_REGISTRY = credentials('ecr-registry')
-        ECR_REPOSITORY = 'calculator-app'
+        ECR_REPOSITORY = 'jonathan-cicd'
         IMAGE_TAG = "${env.BUILD_NUMBER}"
         PRODUCTION_EC2_IP = credentials('production-ec2-ip')
     }

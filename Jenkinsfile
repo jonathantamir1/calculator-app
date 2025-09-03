@@ -54,7 +54,8 @@ pipeline {
                             echo "Installing AWS CLI..."
                             curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
                             unzip awscliv2.zip
-                            sudo ./aws/install
+                            ./aws/install --install-dir /tmp/aws-cli --bin-dir /tmp/aws-cli/bin
+                            export PATH="/tmp/aws-cli/bin:$PATH"
                             
                             echo "Testing AWS credentials..."
                             aws sts get-caller-identity
@@ -64,8 +65,11 @@ pipeline {
                         '''
                         
                         // Push images (already tagged in Build stage)
-                        sh 'docker push ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}'
-                        sh 'docker push ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest'
+                        sh '''
+                            export PATH="/tmp/aws-cli/bin:$PATH"
+                            docker push ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
+                            docker push ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest
+                        '''
                     }
                 }
             }

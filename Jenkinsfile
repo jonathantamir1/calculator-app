@@ -51,13 +51,17 @@ pipeline {
         stage('Test') {
             agent {
                 docker {
-                    image '${ECR_REPOSITORY}:${IMAGE_TAG}'
+                    image 'python:3.11-slim'
                     args '-v /var/run/docker.sock:/var/run/docker.sock'
                 }
             }
             steps {
                 script {
-                    sh 'python -m unittest discover -s tests -v'
+                    sh '''
+                        # Install dependencies and run tests
+                        pip install -r requirements.txt
+                        python -m unittest discover -s tests -v
+                    '''
                 }
             }
         }

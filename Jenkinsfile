@@ -147,14 +147,16 @@ pipeline {
     
     post {
         always {
-            script {
-                // Cleanup using Docker-in-Docker
-                sh '''
-                    docker run --rm -v /var/run/docker.sock:/var/run/docker.sock docker:latest \
-                        sh -c "docker rmi ${ECR_REPOSITORY}:${IMAGE_TAG} || true && \
-                               docker rmi ${ECR_REPOSITORY}:latest || true && \
-                               docker system prune -f || true"
-                '''
+            node {
+                script {
+                    // Cleanup using Docker-in-Docker
+                    sh '''
+                        docker run --rm -v /var/run/docker.sock:/var/run/docker.sock docker:latest \
+                            sh -c "docker rmi ${ECR_REPOSITORY}:${IMAGE_TAG} || true && \
+                                   docker rmi ${ECR_REPOSITORY}:latest || true && \
+                                   docker system prune -f || true"
+                    '''
+                }
             }
         }
     }

@@ -2,7 +2,7 @@ pipeline {
     agent any
     
     environment {
-        ECR_REGISTRY = credentials('ecr-registry')
+        ECR_REGISTRY = '992382545251.dkr.ecr.us-east-1.amazonaws.com'
         ECR_REPOSITORY = 'jonathan-cicd'
         IMAGE_TAG = "${env.BUILD_NUMBER}"
         PRODUCTION_EC2_IP = credentials('production-ec2-ip')
@@ -28,6 +28,10 @@ pipeline {
                     // Build Docker image
                     sh 'docker build -t ${ECR_REPOSITORY}:${IMAGE_TAG} .'
                     sh 'docker tag ${ECR_REPOSITORY}:${IMAGE_TAG} ${ECR_REPOSITORY}:latest'
+                    
+                    // Tag for ECR
+                    sh 'docker tag ${ECR_REPOSITORY}:${IMAGE_TAG} ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}'
+                    sh 'docker tag ${ECR_REPOSITORY}:latest ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest'
                 }
             }
         }
@@ -50,10 +54,7 @@ pipeline {
                             docker login --username AWS --password-stdin ${ECR_REGISTRY}
                         '''
                         
-                        // Tag and push images
-                        sh 'docker tag ${ECR_REPOSITORY}:${IMAGE_TAG} ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}'
-                        sh 'docker tag ${ECR_REPOSITORY}:latest ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest'
-                        
+                        // Push images (already tagged in Build stage)
                         sh 'docker push ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}'
                         sh 'docker push ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest'
                     }
@@ -72,7 +73,11 @@ pipeline {
                                 docker stop calculator-app || true
                                 docker rm calculator-app || true
                                 
-                                # Pull latest image (EC2 has IAM role for ECR access)
+                                # Login to ECR (EC2 has IAM role for ECR access)
+                                aws ecr get-login-password --region us-east-1 | \
+                                docker login --username AWS --password-stdin ${ECR_REGISTRY}
+                                
+                                # Pull latest image
                                 docker pull ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest
                                 
                                 # Run new container

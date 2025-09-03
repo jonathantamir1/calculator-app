@@ -8,6 +8,19 @@ pipeline {
         PRODUCTION_EC2_IP = credentials('production-ec2-ip')
     }
     
+    stages {
+        stage('Environment Setup') {
+            steps {
+                script {
+                    echo "=== Pipeline Environment Variables ==="
+                    echo "ECR_REGISTRY: ${ECR_REGISTRY}"
+                    echo "ECR_REPOSITORY: ${ECR_REPOSITORY}"
+                    echo "IMAGE_TAG: ${IMAGE_TAG}"
+                    echo "PRODUCTION_EC2_IP: ${PRODUCTION_EC2_IP}"
+                    echo "====================================="
+                }
+            }
+        }
         
         stage('Build') {
             steps {
@@ -22,7 +35,6 @@ pipeline {
         stage('Test') {
             steps {
                 script {
-                    // Run stdlib unittest inside the built image (no pip needed)
                     sh 'docker run --rm ${ECR_REPOSITORY}:${IMAGE_TAG} python -m unittest discover -s tests -v'
                 }
             }

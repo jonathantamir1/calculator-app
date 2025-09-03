@@ -103,22 +103,22 @@ pipeline {
                     withCredentials([sshUserPrivateKey(credentialsId: 'ssh-key', keyFileVariable: 'SSH_KEY')]) {
                         sh '''
                             apk add --no-cache openssh-client
-                            ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no ec2-user@${PRODUCTION_EC2_IP} '
+                            ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no ec2-user@${PRODUCTION_EC2_IP} "
                                 # Stop existing container
                                 docker stop calculator-app || true
                                 docker rm calculator-app || true
                                 
                                 # Login to ECR (EC2 has IAM role for ECR access)
-                                aws ecr get-login-password --region us-east-1 | \
+                                aws ecr get-login-password --region us-east-1 | \\
                                 docker login --username AWS --password-stdin ${ECR_REGISTRY}
                                 
                                 # Pull latest image
                                 docker pull ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest
                                 
                                 # Run new container
-                                docker run -d --name calculator-app -p 80:5000 --restart unless-stopped \
+                                docker run -d --name calculator-app -p 80:5000 --restart unless-stopped \\
                                     ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest
-                            '
+                            "
                         '''
                     }
                 }
@@ -147,14 +147,19 @@ pipeline {
     
     post {
         always {
-            script {
-                // Cleanup using Docker-in-Docker
-                sh '''
-                    docker run --rm -v /var/run/docker.sock:/var/run/docker.sock docker:latest \
-                        sh -c "docker rmi ${ECR_REPOSITORY}:${IMAGE_TAG} || true && \
-                               docker rmi ${ECR_REPOSITORY}:latest || true && \
-                               docker system prune -f || true"
-                '''
+            agent {
+                docker {
+                    image 'docker:latest'
+                    args '-v /var/run/docker.sock:/var/run/docker.sock'
+                }
+            }
+            steps {
+                script {
+                    // Cleanup
+                    sh 'docker rmi ${ECR_REPOSITORY}:${IMAGE_TAG} || true'
+                    sh 'docker rmi ${ECR_REPOSITORY}:latest || true'
+                    sh 'docker system prune -f || true'
+                }
             }
         }
     }

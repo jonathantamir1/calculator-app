@@ -4,11 +4,19 @@ pipeline {
     environment {
         ECR_REGISTRY = '992382545251.dkr.ecr.us-east-1.amazonaws.com'
         ECR_REPOSITORY = 'jonathan-cicd'
-        IMAGE_TAG = "${env.BUILD_NUMBER}"
+        // Dynamic tagging: PR-specific for PRs, latest for master
+        IMAGE_TAG = "${env.BRANCH_NAME == 'master' ? 'latest' : "pr-${env.CHANGE_ID}-${env.BUILD_NUMBER}"}"
         PRODUCTION_EC2_IP = credentials('production-ec2-ip')
     }
     
     stages {
+        // ========================================
+        // CI/CD MULTIBRANCH PIPELINE
+        // ========================================
+        // CI Flow (PRs): Build → Test → Push to ECR
+        // CD Flow (Master): Build → Test → Push to ECR → Deploy → Health Check
+        // ========================================
+        
         stage('Environment Setup') {
             agent {
                 docker {
@@ -19,10 +27,14 @@ pipeline {
             steps {
                 script {
                     echo "=== Pipeline Environment Variables ==="
+                    echo "BRANCH_NAME: ${env.BRANCH_NAME}"
+                    echo "CHANGE_ID: ${env.CHANGE_ID}"
+                    echo "BUILD_NUMBER: ${env.BUILD_NUMBER}"
                     echo "ECR_REGISTRY: ${ECR_REGISTRY}"
                     echo "ECR_REPOSITORY: ${ECR_REPOSITORY}"
                     echo "IMAGE_TAG: ${IMAGE_TAG}"
                     echo "PRODUCTION_EC2_IP: ${PRODUCTION_EC2_IP}"
+                    echo "PIPELINE_TYPE: ${env.BRANCH_NAME == 'master' ? 'CD (Deploy to Production)' : 'CI (PR Build Only)'}"
                     echo "====================================="
                 }
             }
@@ -90,7 +102,13 @@ pipeline {
             }
         }
         
+        // ========================================
+        // CD FLOW ONLY - Master Branch Deploy
+        // ========================================
         stage('Deploy to Production') {
+            when {
+                branch 'master'  // Only deploy on master branch (CD flow)
+            }
             agent {
                 docker {
                     image 'alpine:latest'
@@ -126,6 +144,9 @@ pipeline {
         }
         
         stage('Health Check') {
+            when {
+                branch 'master'  // Only health check on master branch (CD flow)
+            }
             agent {
                 docker {
                     image 'alpine:latest'
